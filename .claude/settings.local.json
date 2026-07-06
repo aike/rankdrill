@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node *)",
+      "PowerShell(Start-Process \"D:\\\\prj\\\\claude\\\\rankdrill\\\\index.html\")"
+    ]
+  }
+}

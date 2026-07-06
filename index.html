@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>階数ドリル — 階段行列と階数の判定練習</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1a1d23;
+    --muted: #6b7280;
+    --border: #d8dce2;
+    --accent: #2563eb;
+    --accent-text: #ffffff;
+    --correct: #16a34a;
+    --correct-bg: #e8f7ee;
+    --wrong: #dc2626;
+    --wrong-bg: #fdeaea;
+    --btn-bg: #ffffff;
+    --btn-hover: #eef2ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161a;
+      --card: #1e2128;
+      --text: #e8eaee;
+      --muted: #9aa1ac;
+      --border: #363b45;
+      --accent: #4f83f1;
+      --accent-text: #ffffff;
+      --correct: #34c369;
+      --correct-bg: #16321f;
+      --wrong: #f16a6a;
+      --wrong-bg: #3a1c1c;
+      --btn-bg: #262a33;
+      --btn-hover: #2e3542;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", "Hiragino Sans", "Yu Gothic UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  header {
+    width: 100%;
+    max-width: 640px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  h1 { font-size: 1.2rem; margin: 0; }
+  #defToggle {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.85rem;
+    text-decoration: underline;
+    padding: 0;
+  }
+  #definition {
+    width: 100%;
+    max-width: 640px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 0.88rem;
+    line-height: 1.7;
+    margin-bottom: 12px;
+    display: none;
+  }
+  #definition.open { display: block; }
+
+  #stats {
+    width: 100%;
+    max-width: 640px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 4px;
+    text-align: center;
+  }
+  .stat .label { font-size: 0.7rem; color: var(--muted); }
+  .stat .value { font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  #card {
+    width: 100%;
+    max-width: 640px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #qnum { font-size: 0.8rem; color: var(--muted); align-self: flex-start; margin-bottom: 8px; }
+
+  /* matrix rendering with bracket pseudo-borders */
+  .matrix-wrap {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    margin: 8px 0 20px;
+    user-select: none;
+  }
+  .bracket {
+    width: 10px;
+    border: 2.5px solid var(--text);
+  }
+  .bracket.left  { border-right: none; border-radius: 6px 0 0 6px; }
+  .bracket.right { border-left: none;  border-radius: 0 6px 6px 0; }
+  .matrix {
+    display: grid;
+    gap: 6px 0;
+    padding: 10px 8px;
+    font-family: "Cambria Math", "STIX Two Math", Georgia, serif;
+    font-size: 1.5rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .matrix span {
+    min-width: 2.4em;
+    text-align: center;
+    padding: 1px 4px;
+    border-radius: 5px;
+  }
+  /* (1) の解説：階段部分の強調 */
+  .matrix span.hl-stair { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  .matrix span.hl-pivot { background: color-mix(in srgb, var(--accent) 42%, transparent); font-weight: 700; }
+  .matrix span.hl-bad   { background: color-mix(in srgb, var(--wrong) 38%, transparent); color: var(--wrong); font-weight: 700; }
+  .matrix span.hl-badrow { background: color-mix(in srgb, var(--wrong) 14%, transparent); }
+  /* (2) の解説：非零行の強調 */
+  .matrix span.hl-rank { background: color-mix(in srgb, var(--correct) 18%, transparent); }
+  .matrix span.hl-rank.hl-pivot { background: color-mix(in srgb, var(--correct) 42%, transparent); }
+
+  /* (2) の解説：非零行の範囲を示すブラケットとラベル */
+  #rankBrace {
+    position: absolute;
+    left: 100%;
+    margin-left: 8px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
+  #rankBrace.show { display: flex; }
+  #rankBrace .brace {
+    width: 7px;
+    align-self: stretch;
+    border: 2.5px solid var(--correct);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+  }
+  #rankBrace .braceLabel {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--correct);
+    line-height: 1.5;
+  }
+
+  #question { font-size: 1.05rem; margin-bottom: 14px; text-align: center; min-height: 1.6em; }
+  #answers {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    min-height: 56px;
+  }
+  #answers button {
+    min-width: 84px;
+    padding: 12px 18px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    background: var(--btn-bg);
+    color: var(--text);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  #answers button:hover:not(:disabled) { background: var(--btn-hover); border-color: var(--accent); }
+  #answers button:disabled { cursor: default; opacity: 0.75; }
+  #answers button .key {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  #answers button.mark-correct { background: var(--correct-bg); border-color: var(--correct); color: var(--correct); opacity: 1; }
+  #answers button.mark-wrong   { background: var(--wrong-bg);   border-color: var(--wrong);   color: var(--wrong);   opacity: 1; }
+
+  #feedback {
+    margin-top: 14px;
+    min-height: 1.5em;
+    font-size: 1rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  #feedback.correct { color: var(--correct); }
+  #feedback.wrong   { color: var(--wrong); }
+
+  footer {
+    margin-top: 14px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.6;
+  }
+  footer .about {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-decoration: none;
+  }
+  footer .about:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header>
+  <h1>階数ドリル</h1>
+  <button id="defToggle">階段行列の定義</button>
+</header>
+
+<div id="definition">
+  <strong>階段行列（行階段形）</strong>とは、次の2条件を満たす行列：
+  <ol style="margin:6px 0 0; padding-left:1.4em;">
+    <li>零ベクトルでない行はすべて零ベクトルの行より上にある</li>
+    <li>各行の主成分（左から最初の 0 でない成分）は、上の行の主成分より真に右にある</li>
+  </ol>
+  階段行列の<strong>階数（rank）</strong>は、零ベクトルでない行の個数に等しい。
+</div>
+
+<div id="stats">
+  <div class="stat"><div class="label">回答数</div><div class="value" id="statCount">0</div></div>
+  <div class="stat"><div class="label">正答率</div><div class="value" id="statAcc">—</div></div>
+  <div class="stat"><div class="label">連続正解</div><div class="value" id="statStreak">0</div></div>
+  <div class="stat"><div class="label">平均時間</div><div class="value" id="statTime">—</div></div>
+</div>
+
+<div id="card">
+  <div id="qnum"></div>
+  <div class="matrix-wrap">
+    <div class="bracket left"></div>
+    <div class="matrix" id="matrix"></div>
+    <div class="bracket right"></div>
+    <div id="rankBrace"><div class="brace"></div><div class="braceLabel"></div></div>
+  </div>
+  <div id="question"></div>
+  <div id="answers"></div>
+  <div id="feedback"></div>
+</div>
+
+<footer>
+  キーボード：(1) は <b>Y</b>=はい / <b>N</b>=いいえ、(2) は数字キーで階数を回答<br>
+  解説表示中は <b>Enter</b> / <b>Space</b> ですぐ次へ進めます
+  <a class="about" href="https://github.com/aike/rankdrill" target="_blank" rel="noopener">About</a>
+</footer>
+
+<script>
+"use strict";
+
+/* ---------- 乱数ユーティリティ ---------- */
+function randInt(lo, hi) { // 両端含む
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+function choice(arr) { return arr[randInt(0, arr.length - 1)]; }
+
+// 0でない小さめの整数（絶対値が小さいものを出やすく）
+function nonzeroEntry() {
+  const v = choice([1, 1, 1, 2, 2, 3, 3, 4, 5, 6, 7]);
+  return Math.random() < 0.35 ? -v : v;
+}
+// 任意成分（0も含む）
+function anyEntry() {
+  return Math.random() < 0.4 ? 0 : nonzeroEntry();
+}
+
+/* ---------- 階段行列の判定（正解の根拠） ---------- */
+function leadingCol(row) {
+  for (let j = 0; j < row.length; j++) if (row[j] !== 0) return j;
+  return -1; // 零行
+}
+function isEchelon(M) {
+  let prev = -1;
+  let seenZeroRow = false;
+  for (const row of M) {
+    const lc = leadingCol(row);
+    if (lc === -1) { seenZeroRow = true; continue; }
+    if (seenZeroRow) return false;        // 零行の下に非零行
+    if (lc <= prev) return false;         // 主成分が右に進んでいない
+    prev = lc;
+  }
+  return true;
+}
+function rankOfEchelon(M) {
+  return M.filter(r => leadingCol(r) !== -1).length;
+}
+
+/* ---------- 行列生成 ---------- */
+// 階段行列を生成（rank r, m×n）
+function genEchelon(m, n, r) {
+  const M = Array.from({length: m}, () => Array(n).fill(0));
+  // 主成分の列を狭義単調増加に選ぶ
+  const cols = [];
+  {
+    const pool = Array.from({length: n}, (_, j) => j);
+    // n列からr列を選んで昇順に
+    for (let i = pool.length - 1; i > 0; i--) {
+      const k = randInt(0, i);
+      [pool[i], pool[k]] = [pool[k], pool[i]];
+    }
+    cols.push(...pool.slice(0, r).sort((a, b) => a - b));
+  }
+  for (let i = 0; i < r; i++) {
+    const p = cols[i];
+    M[i][p] = nonzeroEntry();
+    for (let j = p + 1; j < n; j++) M[i][j] = anyEntry();
+  }
+  return M;
+}
+
+// 階段行列を崩して「階段行列でない」行列を作る
+function genNonEchelon(m, n) {
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const maxR = Math.min(m, n);
+    const r = randInt(1, maxR);
+    const M = genEchelon(m, n, r);
+    const type = randInt(0, 2);
+    if (type === 0 && r < m) {
+      // 零行を非零行の間に移動
+      const zeroIdx = m - 1;
+      const insertAt = randInt(0, r - 1);
+      const row = M.splice(zeroIdx, 1)[0];
+      M.splice(insertAt, 0, row);
+    } else if (type === 1 && r >= 2) {
+      // 隣り合う非零行を入れ替え（主成分の順序が崩れる）
+      const i = randInt(0, r - 2);
+      [M[i], M[i + 1]] = [M[i + 1], M[i]];
+    } else {
+      // 階段の左下（本来0の位置）に非零成分を置く
+      const i = randInt(1, m - 1);
+      const upperLc = leadingCol(M[i - 1]);
+      const jMax = upperLc === -1 ? n - 1 : upperLc;
+      const j = randInt(0, jMax);
+      M[i][j] = nonzeroEntry();
+    }
+    if (!isEchelon(M)) return M;
+  }
+  // フォールバック：全成分ランダムで非階段になるまで
+  while (true) {
+    const M = Array.from({length: m}, () => Array.from({length: n}, anyEntry));
+    if (!isEchelon(M)) return M;
+  }
+}
+
+function genProblem() {
+  const m = randInt(2, 6);
+  const n = randInt(2, 6);
+  const echelon = Math.random() < 0.7;
+  if (echelon) {
+    const maxR = Math.min(m, n);
+    // 階数は 1..maxR を中心に、まれに 0（零行列）
+    let r;
+    if (Math.random() < 0.04) r = 0;
+    else r = randInt(1, maxR);
+    const M = genEchelon(m, n, r);
+    return { M, echelon: true, rank: rankOfEchelon(M) };
+  } else {
+    const M = genNonEchelon(m, n);
+    return { M, echelon: false, rank: null };
+  }
+}
+
+/* ---------- 状態と統計 ---------- */
+let problem = null;
+let problemNo = 0;
+let phase = "idle";        // "q1" | "q2" | "wait"
+let answered = 0, correctCount = 0, streak = 0;
+let totalTimeMs = 0, questionStart = 0;
+
+const $ = id => document.getElementById(id);
+
+function updateStats() {
+  $("statCount").textContent = answered;
+  $("statAcc").textContent = answered ? Math.round(100 * correctCount / answered) + "%" : "—";
+  $("statStreak").textContent = streak;
+  $("statTime").textContent = answered ? (totalTimeMs / answered / 1000).toFixed(1) + "s" : "—";
+}
+
+/* ---------- 描画 ---------- */
+let cellEls = []; // cellEls[i][j] = 対応する span 要素
+
+function renderMatrix(M) {
+  const el = $("matrix");
+  el.style.gridTemplateColumns = `repeat(${M[0].length}, auto)`;
+  el.innerHTML = "";
+  cellEls = [];
+  for (const row of M) {
+    const rowEls = [];
+    for (const v of row) {
+      const s = document.createElement("span");
+      s.textContent = v;
+      el.appendChild(s);
+      rowEls.push(s);
+    }
+    cellEls.push(rowEls);
+  }
+}
+
+function clearHighlights() {
+  for (const row of cellEls)
+    for (const s of row)
+      s.classList.remove("hl-stair", "hl-pivot", "hl-bad", "hl-badrow", "hl-rank");
+  $("rankBrace").classList.remove("show");
+}
+
+/* (1) の解説：各行の主成分から右を塗る。階段行列なら色の部分が階段状に見える */
+function highlightStaircase(M) {
+  for (let i = 0; i < M.length; i++) {
+    const lc = leadingCol(M[i]);
+    if (lc === -1) continue;
+    cellEls[i][lc].classList.add("hl-pivot");
+    for (let j = lc + 1; j < M[i].length; j++) cellEls[i][j].classList.add("hl-stair");
+  }
+}
+
+/* 階段行列でない場合、最初に条件が崩れる箇所を特定する */
+function findViolation(M) {
+  let prev = -1;
+  let zeroRowIdx = -1;
+  for (let i = 0; i < M.length; i++) {
+    const lc = leadingCol(M[i]);
+    if (lc === -1) { if (zeroRowIdx === -1) zeroRowIdx = i; continue; }
+    if (zeroRowIdx !== -1) return { type: "zeroRow", row: i, col: lc, zeroRow: zeroRowIdx };
+    if (lc <= prev) return { type: "pivot", row: i, col: lc };
+    prev = lc;
+  }
+  return null;
+}
+
+function highlightViolation(M) {
+  highlightStaircase(M);
+  const v = findViolation(M);
+  if (!v) return "";
+  cellEls[v.row][v.col].classList.remove("hl-pivot", "hl-stair");
+  cellEls[v.row][v.col].classList.add("hl-bad");
+  if (v.type === "zeroRow") {
+    for (const s of cellEls[v.zeroRow]) s.classList.add("hl-badrow");
+    return `第${v.zeroRow + 1}行（零行）の下に非零行があります`;
+  }
+  return `第${v.row + 1}行の主成分が上の行の主成分より右へ進んでいません`;
+}
+
+/* (2) の解説：非零行を塗り、横にブラケットと「非零行 r 行 ⇒ 階数 r」を表示 */
+function showRankExplanation(M, r) {
+  for (let i = 0; i < r; i++) {
+    const lc = leadingCol(M[i]);
+    for (let j = 0; j < M[i].length; j++) cellEls[i][j].classList.add("hl-rank");
+    if (lc !== -1) cellEls[i][lc].classList.add("hl-pivot");
+  }
+  const brace = $("rankBrace");
+  const label = brace.querySelector(".braceLabel");
+  const braceLine = brace.querySelector(".brace");
+  const wrapRect = brace.parentElement.getBoundingClientRect();
+  if (r === 0) {
+    braceLine.style.display = "none";
+    label.textContent = "非零行なし ⇒ 階数 0";
+    brace.style.top = "0";
+    brace.style.height = wrapRect.height + "px";
+  } else {
+    braceLine.style.display = "";
+    const first = cellEls[0][0].getBoundingClientRect();
+    const last = cellEls[r - 1][0].getBoundingClientRect();
+    brace.style.top = (first.top - wrapRect.top - 3) + "px";
+    brace.style.height = (last.bottom - first.top + 6) + "px";
+    const range = r === 1 ? "第1行" : `第1行〜第${r}行`;
+    label.innerHTML = `${range}の<br>非零行が ${r} 行<br>⇒ 階数 ${r}`;
+  }
+  brace.classList.add("show");
+}
+
+function renderAnswers(buttons) {
+  const box = $("answers");
+  box.innerHTML = "";
+  for (const b of buttons) {
+    const btn = document.createElement("button");
+    btn.innerHTML = `${b.label}<span class="key">${b.key}</span>`;
+    btn.dataset.value = b.value;
+    btn.addEventListener("click", () => submit(b.value));
+    box.appendChild(btn);
+  }
+}
+
+function setFeedback(text, cls) {
+  const f = $("feedback");
+  f.textContent = text;
+  f.className = cls || "";
+}
+
+/* ---------- 出題フロー ---------- */
+function nextProblem() {
+  problem = genProblem();
+  problemNo++;
+  renderMatrix(problem.M);
+  startQ1();
+}
+
+function startQ1() {
+  phase = "q1";
+  clearHighlights();
+  $("qnum").textContent = `問題 ${problemNo}`;
+  $("question").textContent = "(1) この行列は階段行列ですか？";
+  renderAnswers([
+    { label: "はい",   key: "Y", value: "yes" },
+    { label: "いいえ", key: "N", value: "no" },
+  ]);
+  setFeedback("");
+  questionStart = performance.now();
+}
+
+function startQ2() {
+  phase = "q2";
+  clearHighlights();
+  $("question").textContent = "(2) この階段行列の階数は？";
+  const maxR = Math.min(problem.M.length, problem.M[0].length);
+  const buttons = [];
+  for (let r = 0; r <= maxR; r++) {
+    buttons.push({ label: String(r), key: String(r), value: r });
+  }
+  renderAnswers(buttons);
+  setFeedback("");
+  questionStart = performance.now();
+}
+
+function markButtons(userValue, correctValue) {
+  for (const btn of $("answers").querySelectorAll("button")) {
+    btn.disabled = true;
+    const v = btn.dataset.value;
+    if (String(v) === String(correctValue)) btn.classList.add("mark-correct");
+    else if (String(v) === String(userValue)) btn.classList.add("mark-wrong");
+  }
+}
+
+function record(isCorrect) {
+  answered++;
+  totalTimeMs += performance.now() - questionStart;
+  if (isCorrect) { correctCount++; streak++; }
+  else streak = 0;
+  updateStats();
+}
+
+/* 解説表示後の自動遷移（Enter/Space/クリックで即時スキップ可能） */
+let pendingNext = null, pendingTimer = null;
+function scheduleNext(fn, delay) {
+  pendingNext = fn;
+  pendingTimer = setTimeout(advanceNow, delay);
+}
+function advanceNow() {
+  if (!pendingNext) return;
+  clearTimeout(pendingTimer);
+  const fn = pendingNext;
+  pendingNext = null;
+  fn();
+}
+
+function submit(value) {
+  if (phase === "q1") {
+    const correct = problem.echelon ? "yes" : "no";
+    const ok = value === correct;
+    record(ok);
+    markButtons(value, correct);
+    phase = "wait";
+    // 考え方の可視化：主成分から右を塗って階段の形（または崩れ）を見せる
+    let msg;
+    if (problem.echelon) {
+      highlightStaircase(problem.M);
+      msg = "色の部分が階段状 ⇒ 階段行列です";
+    } else {
+      const reason = highlightViolation(problem.M);
+      msg = `階段行列ではありません — ${reason}`;
+    }
+    setFeedback((ok ? "正解！ " : "不正解 — ") + msg, ok ? "correct" : "wrong");
+    // 行列が階段行列なら(2)へ、そうでなければ次の問題へ（正誤に関わらず真の性質で分岐）
+    scheduleNext(problem.echelon ? startQ2 : nextProblem, ok ? 1400 : 3000);
+  } else if (phase === "q2") {
+    const ok = value === problem.rank;
+    record(ok);
+    markButtons(value, problem.rank);
+    phase = "wait";
+    // 考え方の可視化：非零行を塗り、行数＝階数であることを横に示す
+    showRankExplanation(problem.M, problem.rank);
+    setFeedback(ok
+      ? `正解！ 非零行が ${problem.rank} 行 ⇒ 階数 ${problem.rank}`
+      : `不正解 — 非零行が ${problem.rank} 行 ⇒ 階数 ${problem.rank}`,
+      ok ? "correct" : "wrong");
+    scheduleNext(nextProblem, ok ? 1400 : 3000);
+  }
+}
+
+/* ---------- キーボード ---------- */
+document.addEventListener("keydown", e => {
+  if (phase === "wait") {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); advanceNow(); }
+    return;
+  }
+  if (phase === "q1") {
+    const k = e.key.toLowerCase();
+    if (k === "y" || k === "1") submit("yes");
+    else if (k === "n" || k === "2") submit("no");
+  } else if (phase === "q2") {
+    if (/^[0-9]$/.test(e.key)) {
+      const r = Number(e.key);
+      const maxR = Math.min(problem.M.length, problem.M[0].length);
+      if (r <= maxR) submit(r);
+    }
+  }
+});
+
+$("defToggle").addEventListener("click", () => {
+  $("definition").classList.toggle("open");
+});
+
+updateStats();
+nextProblem();
+</script>
+</body>
+</html>
