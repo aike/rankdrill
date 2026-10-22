@@ -599,7 +599,7 @@ function submit(value) {
     }
     setFeedback((ok ? "正解！ " : "不正解 — ") + msg, ok ? "correct" : "wrong");
     // 行列が階段行列なら(2)へ、そうでなければ次の問題へ（正誤に関わらず真の性質で分岐）
-    scheduleNext(problem.echelon ? startQ2 : nextProblem, ok ? 1400 : 3000);
+    scheduleNext(problem.echelon ? startQ2 : nextProblem, ok ? 2500 : 4500);
   } else if (phase === "q2") {
     const ok = value === problem.rank;
     record(ok);
@@ -611,7 +611,7 @@ function submit(value) {
       ? `正解！ 非零行が ${problem.rank} 行 ⇒ 階数 ${problem.rank}`
       : `不正解 — 非零行が ${problem.rank} 行 ⇒ 階数 ${problem.rank}`,
       ok ? "correct" : "wrong");
-    scheduleNext(nextProblem, ok ? 1400 : 3000);
+    scheduleNext(nextProblem, ok ? 2500 : 4500);
   }
 }
 
